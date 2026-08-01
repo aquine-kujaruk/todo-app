@@ -1,0 +1,105 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Identificadores del proyecto, no credenciales: sin VERCEL_TOKEN no sirven.
+  VERCEL_ORG_ID: team_3DUaoBXJoYRInk75ggr2PtDx
+  VERCEL_PROJECT_ID: prj_rtkLNg3dwtHa5lfCfNd4jXwAdC1q
+
+jobs:
+  deploy:
+    name: Build y deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verificar el token de Vercel
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::Falta el secret VERCEL_TOKEN (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - name: Instalar Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Determinar entorno de despliegue
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "environment=preview" >> "$GITHUB_OUTPUT"
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+            echo "flag=--prod" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Las credenciales de Supabase viven en las Environment Variables del
+      # proyecto en Vercel. `vercel pull` las trae para el build y Vercel las
+      # inyecta en la lambda en tiempo de ejecución. GitHub nunca las ve.
+      - name: Descargar configuración y entorno desde Vercel
+        run: |
+          vercel pull --yes \
+            --environment=${{ steps.target.outputs.environment }} \
+            --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Build (frontend + rutas de servidor)
+        run: vercel build ${{ steps.target.outputs.flag }} --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt ${{ steps.target.outputs.flag }} \
+            --token="${{ secrets.VERCEL_TOKEN }}")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Desplegado en $url"
+
+      - name: Comprobar que el backend alcanza la base de datos
+        run: |
+          for i in 1 2 3 4 5; do
+            body=$(curl -s "${{ steps.deploy.outputs.url }}/api/health")
+            echo "Intento $i: $body"
+            case "$body" in
+              *'"ok":true'*) echo "Health check OK"; exit 0 ;;
+              *not_configured*)
+                echo "::error::Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY en las Environment Variables del proyecto en Vercel."
+                exit 1 ;;
+            esac
+            sleep 5
+          done
+          echo "::error::El health check no pasó"
+          exit 1
+
+      - name: Resumen
+        run: |
+          {
+            echo "### Despliegue ${{ steps.target.outputs.environment }}"
+            echo ""
+            echo "URL: ${{ steps.deploy.outputs.url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comentar la URL de preview en el PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "${{ github.event.number }}" --body "Preview desplegada: ${{ steps.deploy.outputs.url }}"
