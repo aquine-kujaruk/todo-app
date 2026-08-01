@@ -45,22 +45,25 @@ Environment Variables.
 | `SUPABASE_URL` | `https://itnmhhhqymgsegnntemk.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API Keys → `service_role` |
 
-En GitHub solo hace falta un secret, `VERCEL_TOKEN`, para que la Action pueda
-desplegar. Las credenciales de la base de datos nunca pasan por GitHub: el
-workflow hace `vercel pull` y es Vercel quien las inyecta.
+En GitHub no hace falta configurar nada: ni secrets, ni tokens.
 
 ## Despliegue
 
-`.github/workflows/deploy.yml`:
+Lo lleva la integración Git nativa de Vercel. Se conecta una vez en Project
+`todo-poc` → Settings → Git → Connect Git Repository, y a partir de ahí Vercel
+escucha el repositorio por su cuenta:
 
 | Evento | Resultado |
 | --- | --- |
 | PR contra `main` | deploy de preview + comentario con la URL en el PR |
 | Merge a `main` | deploy a producción |
-| `workflow_dispatch` | deploy manual |
 
-Tras desplegar, el workflow llama a `/api/health` y falla el run si el backend no
-alcanza la base de datos, distinguiendo el caso de "faltan variables de entorno".
+No hay GitHub Action. Hubo una que hacía lo mismo con la CLI de Vercel, pero
+exigía un `VERCEL_TOKEN` en los secrets del repositorio para conseguir un
+resultado que la integración nativa da sin credenciales. Está en el historial
+(`git log -- .github/workflows/deploy.yml`) por si algún día hace falta meter
+pasos propios antes de desplegar: tests, linters o una puerta sobre
+`/api/health`. Para eso sí compensa; para desplegar y ya, no.
 
 ## API
 
