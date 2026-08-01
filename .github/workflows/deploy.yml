@@ -15,6 +15,10 @@ env:
   # Identificadores del proyecto, no credenciales: sin VERCEL_TOKEN no sirven.
   VERCEL_ORG_ID: team_3DUaoBXJoYRInk75ggr2PtDx
   VERCEL_PROJECT_ID: prj_rtkLNg3dwtHa5lfCfNd4jXwAdC1q
+  # El scope hay que pasarlo explícitamente: un token cuyo ámbito por defecto es
+  # la cuenta personal no encuentra un proyecto que vive en un equipo, y falla
+  # con "Could not retrieve Project Settings".
+  VERCEL_SCOPE: edgar-aquines-projects
 
 jobs:
   deploy:
@@ -32,15 +36,36 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Instalar Vercel CLI
+        run: npm install -g vercel@latest
+
+      # Validar el token aquí evita fallos opacos más adelante: sin esto, un
+      # token inválido se manifiesta como "Could not retrieve Project Settings"
+      # en `vercel pull`, que parece un problema de configuración del proyecto.
       - name: Verificar el token de Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+          if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::Falta el secret VERCEL_TOKEN (Settings → Secrets and variables → Actions)."
             exit 1
           fi
 
-      - name: Instalar Vercel CLI
-        run: npm install -g vercel@latest
+          # Un token copiado con espacios o saltos de línea alrededor no vale.
+          trimmed=$(printf '%s' "$VERCEL_TOKEN" | tr -d '[:space:]')
+          if [ "$trimmed" != "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN tiene espacios o saltos de línea alrededor; vuelve a pegarlo limpio."
+          fi
+
+          if ! user=$(vercel whoami --token="$VERCEL_TOKEN" 2>&1); then
+            echo "::error::VERCEL_TOKEN no es válido. Genera uno nuevo en https://vercel.com/account/tokens y actualiza el secret."
+            echo "Respuesta de la CLI: $user"
+            exit 1
+          fi
+          echo "Autenticado como: $user"
+
+          echo "Equipos visibles para el token:"
+          vercel teams ls --token="$VERCEL_TOKEN" || true
 
       - name: Determinar entorno de despliegue
         id: target
@@ -60,6 +85,7 @@ jobs:
         run: |
           vercel pull --yes \
             --environment=${{ steps.target.outputs.environment }} \
+            --scope="$VERCEL_SCOPE" \
             --token="${{ secrets.VERCEL_TOKEN }}"
 
       - name: Build (frontend + rutas de servidor)
@@ -69,6 +95,7 @@ jobs:
         id: deploy
         run: |
           url=$(vercel deploy --prebuilt ${{ steps.target.outputs.flag }} \
+            --scope="$VERCEL_SCOPE" \
             --token="${{ secrets.VERCEL_TOKEN }}")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Desplegado en $url"
