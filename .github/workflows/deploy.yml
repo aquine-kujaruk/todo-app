@@ -15,6 +15,10 @@ env:
   # Identificadores del proyecto, no credenciales: sin VERCEL_TOKEN no sirven.
   VERCEL_ORG_ID: team_3DUaoBXJoYRInk75ggr2PtDx
   VERCEL_PROJECT_ID: prj_rtkLNg3dwtHa5lfCfNd4jXwAdC1q
+  # El scope hay que pasarlo explícitamente: un token cuyo ámbito por defecto es
+  # la cuenta personal no encuentra un proyecto que vive en un equipo, y falla
+  # con "Could not retrieve Project Settings".
+  VERCEL_SCOPE: edgar-aquines-projects
 
 jobs:
   deploy:
@@ -53,6 +57,15 @@ jobs:
             echo "flag=--prod" >> "$GITHUB_OUTPUT"
           fi
 
+      # Si algo falla al enlazar el proyecto, esto deja en el log a qué cuenta y
+      # a qué equipos tiene acceso realmente el token.
+      - name: Diagnóstico de acceso del token
+        run: |
+          echo "Usuario del token:"
+          vercel whoami --token="${{ secrets.VERCEL_TOKEN }}" || true
+          echo "Equipos visibles:"
+          vercel teams ls --token="${{ secrets.VERCEL_TOKEN }}" || true
+
       # Las credenciales de Supabase viven en las Environment Variables del
       # proyecto en Vercel. `vercel pull` las trae para el build y Vercel las
       # inyecta en la lambda en tiempo de ejecución. GitHub nunca las ve.
@@ -60,6 +73,7 @@ jobs:
         run: |
           vercel pull --yes \
             --environment=${{ steps.target.outputs.environment }} \
+            --scope="$VERCEL_SCOPE" \
             --token="${{ secrets.VERCEL_TOKEN }}"
 
       - name: Build (frontend + rutas de servidor)
@@ -69,6 +83,7 @@ jobs:
         id: deploy
         run: |
           url=$(vercel deploy --prebuilt ${{ steps.target.outputs.flag }} \
+            --scope="$VERCEL_SCOPE" \
             --token="${{ secrets.VERCEL_TOKEN }}")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Desplegado en $url"
