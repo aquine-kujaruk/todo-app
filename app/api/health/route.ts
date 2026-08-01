@@ -1,21 +1,32 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
 
-// Ruta de servidor (lambda en Vercel): comprueba que el backend desplegado
-// alcanza Supabase. El workflow la usa como health check tras el deploy.
+// El workflow usa esta ruta como comprobación tras el deploy.
 export async function GET() {
-  const { count, error } = await supabase
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "not_configured",
+        detail:
+          "Faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY en las Environment Variables del proyecto en Vercel.",
+      },
+      { status: 503 }
+    );
+  }
+
+  const { count, error } = await getSupabase()
     .from("todos")
     .select("*", { count: "exact", head: true });
 
   if (error) {
     return NextResponse.json(
-      { ok: false, database: "unreachable", error: error.message },
+      { ok: false, reason: "database_unreachable", detail: error.message },
       { status: 503 }
     );
   }
 
-  return NextResponse.json({ ok: true, database: "reachable", todos: count });
+  return NextResponse.json({ ok: true, todos: count });
 }

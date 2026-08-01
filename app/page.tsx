@@ -7,7 +7,10 @@ export default function Home() {
     <main className="page">
       <header className="header">
         <h1>Todo</h1>
-        <p>Next.js + Supabase, desplegado en Vercel. Sin autenticación.</p>
+        <p>
+          Next.js en Vercel. El navegador solo habla con <code>/api/todos</code>;
+          las claves de Supabase viven en el servidor.
+        </p>
       </header>
       <TodoApp />
     </main>

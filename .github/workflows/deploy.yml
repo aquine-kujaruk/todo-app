@@ -12,8 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # IDs del proyecto en Vercel. No son secretos (sin VERCEL_TOKEN no sirven de nada),
-  # así que van en claro para no tener que configurar dos secrets más.
+  # Identificadores del proyecto, no credenciales: sin VERCEL_TOKEN no sirven.
   VERCEL_ORG_ID: team_3DUaoBXJoYRInk75ggr2PtDx
   VERCEL_PROJECT_ID: prj_rtkLNg3dwtHa5lfCfNd4jXwAdC1q
 
@@ -33,19 +32,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Verificar que los secrets están configurados
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - name: Verificar el token de Vercel
         run: |
-          missing=""
-          [ -n "$VERCEL_TOKEN" ] || missing="$missing VERCEL_TOKEN"
-          [ -n "$NEXT_PUBLIC_SUPABASE_URL" ] || missing="$missing NEXT_PUBLIC_SUPABASE_URL"
-          [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || missing="$missing NEXT_PUBLIC_SUPABASE_ANON_KEY"
-          if [ -n "$missing" ]; then
-            echo "::error::Faltan secrets en el repositorio:$missing"
-            echo "Configúralos en Settings → Secrets and variables → Actions."
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::Falta el secret VERCEL_TOKEN (Settings → Secrets and variables → Actions)."
             exit 1
           fi
 
@@ -63,26 +53,14 @@ jobs:
             echo "flag=--prod" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Descargar configuración del proyecto de Vercel
+      # Las credenciales de Supabase viven en las Environment Variables del
+      # proyecto en Vercel. `vercel pull` las trae para el build y Vercel las
+      # inyecta en la lambda en tiempo de ejecución. GitHub nunca las ve.
+      - name: Descargar configuración y entorno desde Vercel
         run: |
           vercel pull --yes \
             --environment=${{ steps.target.outputs.environment }} \
             --token="${{ secrets.VERCEL_TOKEN }}"
-
-      # Aquí está el punto de la historia: los secretos viven en GitHub y se
-      # materializan como .env justo antes del build. Next.js carga
-      # .env.production.local con la máxima prioridad entre los ficheros .env,
-      # así que estos valores son los que quedan inlineados en el bundle.
-      - name: Generar .env.production.local desde los secrets del repositorio
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-        run: |
-          {
-            printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$NEXT_PUBLIC_SUPABASE_URL"
-            printf 'NEXT_PUBLIC_SUPABASE_ANON_KEY=%s\n' "$NEXT_PUBLIC_SUPABASE_ANON_KEY"
-          } > .env.production.local
-          echo "Generado .env.production.local con $(wc -l < .env.production.local) variables"
 
       - name: Build (frontend + rutas de servidor)
         run: vercel build ${{ steps.target.outputs.flag }} --token="${{ secrets.VERCEL_TOKEN }}"
@@ -95,15 +73,20 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Desplegado en $url"
 
-      - name: Comprobar que el despliegue responde
+      - name: Comprobar que el backend alcanza la base de datos
         run: |
           for i in 1 2 3 4 5; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "${{ steps.deploy.outputs.url }}/api/health")
-            [ "$code" = "200" ] && echo "Health check OK" && exit 0
-            echo "Intento $i: HTTP $code, reintentando…"
+            body=$(curl -s "${{ steps.deploy.outputs.url }}/api/health")
+            echo "Intento $i: $body"
+            case "$body" in
+              *'"ok":true'*) echo "Health check OK"; exit 0 ;;
+              *not_configured*)
+                echo "::error::Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY en las Environment Variables del proyecto en Vercel."
+                exit 1 ;;
+            esac
             sleep 5
           done
-          echo "::error::El health check no devolvió 200"
+          echo "::error::El health check no pasó"
           exit 1
 
       - name: Resumen

@@ -1,7 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase, type Todo } from "@/lib/supabase";
+
+// Este componente no sabe que Supabase existe: solo habla con /api/todos,
+// que es el mismo origen. Las credenciales viven en el servidor.
+type Todo = {
+  id: string;
+  title: string;
+  is_done: boolean;
+  created_at: string;
+};
+
+async function apiError(res: Response) {
+  const body = await res.json().catch(() => null);
+  return body?.error ?? body?.detail ?? `HTTP ${res.status}`;
+}
 
 export default function TodoApp() {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -10,17 +23,16 @@ export default function TodoApp() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("todos")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) setError(error.message);
-    else {
-      setTodos(data as Todo[]);
+    try {
+      const res = await fetch("/api/todos");
+      if (!res.ok) throw new Error(await apiError(res));
+      setTodos(await res.json());
       setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -33,43 +45,46 @@ export default function TodoApp() {
     if (!value) return;
 
     setTitle("");
-    const { data, error } = await supabase
-      .from("todos")
-      .insert({ title: value })
-      .select()
-      .single();
-
-    if (error) {
-      setError(error.message);
+    try {
+      const res = await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: value }),
+      });
+      if (!res.ok) throw new Error(await apiError(res));
+      const created: Todo = await res.json();
+      setTodos((prev) => [created, ...prev]);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
       setTitle(value);
-      return;
     }
-    setTodos((prev) => [data as Todo, ...prev]);
   }
 
   async function toggleTodo(todo: Todo) {
     setTodos((prev) =>
       prev.map((t) => (t.id === todo.id ? { ...t, is_done: !t.is_done } : t))
     );
-
-    const { error } = await supabase
-      .from("todos")
-      .update({ is_done: !todo.is_done })
-      .eq("id", todo.id);
-
-    if (error) {
-      setError(error.message);
+    try {
+      const res = await fetch(`/api/todos/${todo.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_done: !todo.is_done }),
+      });
+      if (!res.ok) throw new Error(await apiError(res));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
       load();
     }
   }
 
   async function removeTodo(todo: Todo) {
     setTodos((prev) => prev.filter((t) => t.id !== todo.id));
-
-    const { error } = await supabase.from("todos").delete().eq("id", todo.id);
-
-    if (error) {
-      setError(error.message);
+    try {
+      const res = await fetch(`/api/todos/${todo.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await apiError(res));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
       load();
     }
   }
