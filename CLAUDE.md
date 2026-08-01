@@ -4,6 +4,13 @@ Contexto para trabajar en este repositorio desde Claude Code. La app se mantiene
 desde aquí: los cambios se piden en el chat, se abren como PR y se mergean a
 `main`, que es lo que dispara el despliegue.
 
+## Pedir cambios sin saber programar
+
+`/nueva-funcionalidad` (en `.claude/skills/`) cubre ese camino entero para quien no
+es técnico: hace unas pocas preguntas en lenguaje llano —solo las que esa persona
+puede decidir, nunca las técnicas—, publica una issue con la especificación y el
+plan, y despacha subagentes que la implementan, abren la PR y la mergean a `main`.
+
 ## Los tres sitios donde vive esto
 
 | | Identificador | Cómo consultarlo |
