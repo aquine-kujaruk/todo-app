@@ -94,19 +94,17 @@ docs and schema. Use it to answer "what does this touch?" before you plan, rathe
 grepping blind.
 
 At the start of any run that reaches Phase 2, dispatch **one Sonnet subagent**
-(`subagent_type: general-purpose`, `model: sonnet`, `run_in_background: true`) to:
+(`subagent_type: general-purpose`, `model: sonnet`, `run_in_background: true`) to install
+or upgrade the tool and refresh the graph. It works while you interview; nobody waits on it.
 
-1. Update the tool if it's behind — compare the installed `graphify --version` against the
-   latest on PyPI, and upgrade if they differ.
-2. Build or refresh the graph over the repository into `graphify-out/`.
+The `graphify` skill has the commands and the reasoning. Two things matter enough to repeat
+here: the tool is **not** local by default — a bare `extract` shells out to the `claude`
+CLI and ships the repository off the machine, so the build always carries `--code-only` and
+`--no-label` — and `graphify-out/` is gitignored, never committed.
 
-It runs in the background while you interview. `graphify-out/` is gitignored and never
-committed — it is derived, it goes stale the moment code changes, and its JSON would bury
-every diff. Never pass a flag that pushes the graph to an outside service.
-
-Once it exists: `graphify query "<question>"`, `graphify path "<A>" "<B>"`,
-`graphify explain "<concept>"`. If the build failed, say so and carry on with `git` and
-`grep` — a missing graph slows you down, it never blocks the flow.
+Once it exists, `graphify query`, `path`, `explain` and `affected` beat grep for "what does
+this touch?". If the build failed, say so and carry on with `git` and `grep` — a missing
+graph slows you down, it never blocks the flow.
 
 ## Phase 1 — Their what, your how
 

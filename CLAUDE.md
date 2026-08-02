@@ -31,9 +31,18 @@ Whenever a `/next` run reaches the point of writing an issue, dispatch **one Son
 subagent in the background** to install-or-upgrade it and refresh the graph, then keep
 interviewing while it works — nobody waits on the graph.
 
+**It is not local by default.** `graphify extract`, `cluster-only` and `label`
+auto-detect a model backend, and with no API key set they shell out to the `claude`
+CLI on `PATH` — a nested agent, real cost, and the repository leaving the machine. The
+build is always `graphify extract . --code-only` then
+`graphify cluster-only . --no-label`, and refreshes are `graphify update .`, which
+never calls a model. `GRAPH_REPORT.md` prints `Token cost: 0 input · 0 output` when
+the run really was local.
+
 `graphify-out/` is gitignored on purpose: it's derived, it goes stale the moment code
-changes, and its JSON would bury every diff. Never pass a flag that pushes the graph
-to an outside service (`--neo4j-push`, `--falkordb-push`, `--mcp`).
+changes, and its JSON would bury every diff. It's excluded in `biome.json` too, since
+Biome formats `**` and doesn't read `.gitignore`. Never push the graph to an outside
+store and never serve it over `graphify-mcp`.
 
 ## Mandate zero: production stays up
 

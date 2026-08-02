@@ -1,16 +1,27 @@
 ---
 name: graphify
-description: The knowledge graph of this repository — what connects to what, across code, docs and schema. Use before planning any change, to answer "what does this touch?" without grepping blind, and for any question about architecture, file relationships or where a concept lives. Also covers installing and updating the graphify tool itself, which is absent at the start of every session because the container is ephemeral.
+description: The knowledge graph of this repository — what connects to what, across code and schema. Use before planning any change, to answer "what does this touch?" without grepping blind, and for any question about architecture, file relationships or where a concept lives. Also covers installing and updating the graphify tool itself, which is absent at the start of every session because the container is ephemeral.
 ---
 
 # Graphify
 
 `graphify` (upstream: [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify),
 PyPI `graphifyy`) parses the repository with tree-sitter and produces a queryable graph.
-It's local AST work — no model calls, no API cost, nothing leaves the machine.
 
 Edges are labelled for honesty: `EXTRACTED` was found in the source, `INFERRED` was
-resolved. Treat an `INFERRED` edge as a lead, not a fact.
+resolved. Treat an `INFERRED` edge as a lead, not a fact. A local-only build is 100%
+`EXTRACTED`.
+
+## Always opt out of the LLM backend
+
+This is the part to get right. **`graphify` is not local by default.** Bare `extract`,
+`cluster-only` and `label` auto-detect a model backend from whatever is available — and if
+no API key is set, they fall back to shelling out to the `claude` CLI when it's on `PATH`,
+which it is here. That means a nested agent, real cost, and the repository's contents
+leaving the machine, none of it asked for.
+
+Every command below therefore carries its opt-out. `GRAPH_REPORT.md` prints
+`Token cost: 0 input · 0 output` when the run really was local — check it.
 
 ## Bootstrap
 
@@ -39,35 +50,58 @@ file with the vendor's own. This repository owns its skill and its `CLAUDE.md`.
 
 ## Build
 
+Two steps, both local. There is no `graphify .`.
+
 ```bash
-graphify .                # full pipeline into graphify-out/
-graphify . --update       # incremental: only new or changed files
-graphify . --no-viz       # skip the HTML if generation fails
+graphify extract . --code-only        # AST only, no API key, skips docs/images
+graphify cluster-only . --no-label    # communities, no LLM naming
 ```
 
-Three outputs land in `graphify-out/`: `graph.json` (queryable), `GRAPH_REPORT.md`
-(prose), `graph.html` (interactive).
+`--no-label` leaves communities as `Community 0`, `Community 1` … That is the price of not
+calling a model on a first build, and it's the right trade — the edges are what the graph
+is for.
+
+After code changes:
+
+```bash
+graphify update .                     # re-extract changed files; no LLM, no cost
+```
+
+`update` re-clusters as it goes and names communities after their hub node (`getSupabase`,
+and so on) without calling anything — still `Token cost: 0`. So the placeholders from the
+first build disappear on the first refresh.
+
+Add `--no-viz` to `cluster-only` if HTML generation ever fails. Output lands in
+`graphify-out/`: `graph.json` (queryable), `GRAPH_REPORT.md` (prose), `graph.html`
+(interactive).
 
 `graphify-out/` is **gitignored and never committed** — derived, stale the moment code
-changes, and its JSON would bury every diff.
+changes, and its JSON would bury every diff. It's excluded in `biome.json` too, because
+Biome formats `**` and does not read `.gitignore`.
 
-**Never** pass a flag that sends the graph anywhere: `--neo4j-push`, `--falkordb-push`,
-`--mcp`. The graph describes a codebase whose whole architecture is that credentials stay
-server-side; it stays local.
+## Is the graph stale?
+
+`GRAPH_REPORT.md` records the commit it was built from. Compare against `git rev-parse
+HEAD`; if they differ, `graphify update .` before trusting it.
 
 ## Query
 
 Once `graphify-out/graph.json` exists, reach for these before grep — they return a scoped
-subgraph rather than a wall of matches:
+subgraph rather than a wall of matches, and none of them calls a model:
 
 | Command | For |
 | --- | --- |
 | `graphify query "<question>"` | "What connects the API to the database?" |
 | `graphify path "<A>" "<B>"` | The shortest link between two things |
 | `graphify explain "<concept>"` | Everything hanging off one component |
+| `graphify affected "<X>"` | What breaks if X changes — reverse traversal |
+| `graphify god-nodes` | The architectural hubs, most connected first |
 
-Read `graphify-out/GRAPH_REPORT.md` only for a broad architecture sweep, or when the three
-above don't surface enough.
+Read `graphify-out/GRAPH_REPORT.md` only for a broad architecture sweep, or when the
+commands above don't surface enough.
 
-After code lands, `graphify . --update` keeps it current. It's cheap; there's no reason to
-work against a stale graph.
+## Never send the graph out
+
+No pushing to Neo4j, FalkorDB or any other external store, and don't start `graphify-mcp`
+to serve it. This codebase's entire architecture exists to keep credentials server-side;
+its map stays local too.

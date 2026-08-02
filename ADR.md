@@ -55,5 +55,9 @@ something already here has stopped earning its place.
   as of Next 15.5 and, unconfigured, opens an interactive prompt that hangs an agent
   forever.
 - **`graphify-out/` is derived and never committed.** The graph is rebuilt on demand and is
-  stale the moment code changes; committing it would bury every diff in JSON. It also never
-  leaves the machine — no `--neo4j-push`, no `--falkordb-push`, no `--mcp`.
+  stale the moment code changes; committing it would bury every diff in JSON.
+- **The graph is built local-only, and that takes explicit flags.** `graphify` auto-detects
+  a model backend and falls back to the `claude` CLI on `PATH`, so a bare `extract` quietly
+  becomes a nested agent that ships the repository off the machine. Build with
+  `extract --code-only` and `cluster-only --no-label`; refresh with `update`. Unnamed
+  communities are the accepted cost.

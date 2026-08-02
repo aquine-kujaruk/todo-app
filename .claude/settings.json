@@ -23,8 +23,10 @@
       "Bash(curl -s https://pypi.org/pypi/graphifyy/json)"
     ],
     "deny": [
-      "Bash(graphify:*--neo4j-push*)",
-      "Bash(graphify:*--falkordb-push*)",
+      "Bash(graphify install:*)",
+      "Bash(graphify uninstall:*)",
+      "Bash(graphify label:*)",
+      "Bash(graphify-mcp:*)",
       "Read(./.env)",
       "Read(./.env.local)",
       "Read(./.env*.local)"
