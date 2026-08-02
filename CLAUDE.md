@@ -6,7 +6,7 @@ desde aquí: los cambios se piden en el chat, se abren como PR y se mergean a
 
 ## Pedir cambios sin saber programar
 
-`/planear` (en `.claude/skills/`) cubre ese camino entero para quien no es técnico:
+`/next` (en `.claude/skills/`) cubre ese camino entero para quien no es técnico:
 pregunta en lenguaje llano —solo lo que esa persona puede decidir, nunca lo técnico—,
 publica una issue con la especificación y el plan, y despacha subagentes que la
 implementan, pasan `lint` y `build`, abren la PR y la mergean a `main`. Quien pide el
@@ -128,7 +128,7 @@ ninguna credencial se ha colado en el bundle del cliente.
 `npm run lint` es `eslint .` con la configuración de create-next-app
 (`eslint.config.mjs`). No se usa `next lint` porque quedó obsoleto en Next 15.5 y,
 sin configurar, abre un prompt interactivo que cuelga a los agentes. Las dos órdenes
-son las puertas que `/planear` exige en verde antes de empujar y antes de mergear.
+son las puertas que `/next` exige en verde antes de empujar y antes de mergear.
 
 ## Esquema
 
