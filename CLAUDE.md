@@ -1,53 +1,62 @@
 # CLAUDE.md
 
-Contexto para trabajar en este repositorio desde Claude Code. La app se mantiene
-desde aquí: los cambios se piden en el chat, se abren como PR y se mergean a
-`main`, que es lo que dispara el despliegue.
+Context for working on this repository from Claude Code. The app is maintained from
+here: changes are asked for in chat, opened as a PR and merged to `main`, which is
+what triggers deployment.
 
-## Pedir cambios sin saber programar
+Everything project-specific lives in this file. `/next` reads it rather than
+hardcoding any of it, so the skill stays portable across repositories.
 
-`/next` (en `.claude/skills/`) cubre ese camino entero para quien no es técnico:
-entrevista en lenguaje llano —a fondo, pero solo sobre lo que esa persona puede
-decidir, nunca sobre lo técnico—, publica una issue con la especificación y el plan,
-y se la entrega a un agente Opus que orquesta Sonnets para implementarla, espera al
-check de CI y mergea a `main` en verde. Quien pide el cambio no espera ni comprueba
-nada: recibe un aviso cuando ya está en producción.
+## Where memory lives
 
-## Los tres sitios donde vive esto
-
-| | Identificador | Cómo consultarlo |
+| File | Holds | Read it |
 | --- | --- | --- |
-| **GitHub** | `aquine-kujaruk/todo-app`, rama por defecto `main` | herramientas `mcp__github__*` |
-| **Supabase** | proyecto `todo-poc`, ref **`itnmhhhqymgsegnntemk`**, región `eu-west-1`, org `crjyxjevreumhokuxvig` | herramientas `mcp__Supabase__*`, pasando ese `project_id` |
-| **Vercel** | proyecto `todo-poc`, id **`prj_rtkLNg3dwtHa5lfCfNd4jXwAdC1q`**, equipo **`team_3DUaoBXJoYRInk75ggr2PtDx`** (slug `edgar-aquines-projects`) | herramientas `mcp__Vercel__*`, pasando `teamId` |
+| `ADR.md` | Architectural constraints that bind future work | Before changing anything structural |
+| `CONTEXT.md` | What the product means, and what is deliberately absent | Before adding a feature |
+| Closed issues | The intent behind existing code | `git blame` a line → its commit → its issue |
 
-- Producción: **https://todo-poc.vercel.app**
-- API de Supabase: `https://itnmhhhqymgsegnntemk.supabase.co`
+Both files carry a line budget and are pruned as they grow: adding a decision is
+coupled to removing one that has stopped earning its place. Git history is the
+archive.
 
-Hay otros dos proyectos en la misma organización de Supabase (`Doc Search`,
-`Poc-prisa-backoffice`) que no tienen nada que ver con esto. Confirmar siempre el
-ref antes de aplicar una migración.
+## Asking for changes without knowing how to code
 
-## Arquitectura: la base de datos solo se toca desde el servidor
+`/next` (in `.claude/skills/`) covers that whole path for a non-technical person: a
+plain-language interview — thorough, but only about what that person can decide,
+never about the technical side — then an issue holding the spec and the plan, handed
+to an Opus agent that orchestrates Sonnets to implement it, waits for the CI check
+and merges to `main` on green. Whoever asked waits for nothing and checks nothing:
+they get a notification once it's in production.
+
+## The three places this lives
+
+| | Identifier | How to reach it |
+| --- | --- | --- |
+| **GitHub** | `aquine-kujaruk/todo-app`, default branch `main` | `mcp__github__*` tools |
+| **Supabase** | project `todo-poc`, ref **`itnmhhhqymgsegnntemk`**, region `eu-west-1`, org `crjyxjevreumhokuxvig` | `mcp__Supabase__*` tools, passing that `project_id` |
+| **Vercel** | project `todo-poc`, id **`prj_rtkLNg3dwtHa5lfCfNd4jXwAdC1q`**, team **`team_3DUaoBXJoYRInk75ggr2PtDx`** (slug `edgar-aquines-projects`) | `mcp__Vercel__*` tools, passing `teamId` |
+
+- Production: **https://todo-poc.vercel.app**
+- Supabase API: `https://itnmhhhqymgsegnntemk.supabase.co`
+
+Two other projects share the same Supabase organization (`Doc Search`,
+`Poc-prisa-backoffice`) and have nothing to do with this one. Always confirm the ref
+before applying a migration.
+
+## Architecture
 
 ```
-Navegador ──fetch /api/todos──► Lambda de Vercel ──service_role──► Supabase
-(sin claves)                     (Next.js)                          (RLS cerrado)
+Browser ──fetch /api/todos──► Vercel Lambda ──service_role──► Supabase
+(no keys)                     (Next.js)                       (RLS closed)
 ```
 
-- `components/TodoApp.tsx` — cliente. Solo hace `fetch` al mismo origen. No
-  importa el SDK de Supabase ni conoce ninguna clave.
-- `app/api/todos/route.ts`, `app/api/todos/[id]/route.ts` — el backend.
-- `lib/supabaseServer.ts` — importa `server-only`, así que **el build falla** si
-  un componente de cliente lo importa. El cliente se crea perezosamente, de modo
-  que el build no necesita variables de entorno.
+- `components/TodoApp.tsx` — the client. Only `fetch` to same origin. It doesn't
+  import the Supabase SDK and knows no keys.
+- `app/api/todos/route.ts`, `app/api/todos/[id]/route.ts` — the backend.
+- `lib/supabaseServer.ts` — the only place credentials are read.
 
-Ninguna variable lleva prefijo `NEXT_PUBLIC_`, a propósito: Next inlinea esas en
-el bundle del navegador. Al añadir una variable nueva, si es una credencial, no
-usar ese prefijo.
-
-La tabla `todos` tiene RLS activo, **ninguna política** y sin grants a `anon` ni
-`authenticated`. La clave publicable no sirve para nada:
+The `todos` table has RLS on, **no policies**, and no grants to `anon` or
+`authenticated`. The publishable key grants nothing:
 
 ```console
 $ curl "https://itnmhhhqymgsegnntemk.supabase.co/rest/v1/todos?select=*" \
@@ -55,87 +64,85 @@ $ curl "https://itnmhhhqymgsegnntemk.supabase.co/rest/v1/todos?select=*" \
 {"code":"42501","message":"permission denied for table todos"}
 ```
 
-Eso es el diseño, no un fallo. Si algún cambio necesita acceso directo desde el
-cliente, hay que replantearlo: rompe la garantía de que todo pasa por el servidor.
+That is the design, not a bug. `ADR.md` has the constraints this implies.
 
-## Despliegue
+## Deployment
 
-Lo lleva la **integración Git nativa de Vercel**, conectada en el panel. No hay
-`VERCEL_TOKEN` ni ningún secret en el repositorio.
+Handled by **Vercel's native Git integration**, connected in the dashboard. There is
+no `VERCEL_TOKEN` and no secret in the repository.
 
-| Evento | Resultado |
+| Event | Result |
 | --- | --- |
-| PR contra `main` | deploy de preview + check de CI |
-| Merge a `main` | deploy a producción |
+| PR against `main` | preview deploy + CI check |
+| Merge to `main` | production deploy |
 
-Hubo un workflow que desplegaba con la CLI de Vercel; se eliminó porque exigía un
-token para conseguir lo que la integración nativa da sin credenciales. Sigue en el
-historial (`git log -- .github/workflows/deploy.yml`).
+A workflow once deployed via the Vercel CLI; it was removed because it needed a token
+to achieve what the native integration gives with no credentials. It's still in
+history (`git log -- .github/workflows/deploy.yml`).
 
-El despliegue, entonces, no lo toca ninguna Action. La única que hay es
-`.github/workflows/ci.yml`, que corre `lint` y `build` en cada PR y en cada push a
-`main`. Existe porque es la puerta de `/next`: un agente que dice "el lint pasó" es
-una promesa, y un check verde es un hecho. No necesita secrets — `npm run build`
-funciona sin variables de entorno.
+So no Action touches deployment. The only one is `.github/workflows/ci.yml`, running
+`format`, `lint` and `build` on every PR and every push to `main`. It exists because
+it is `/next`'s gate: an agent saying "lint passed" is a promise, a green check is a
+fact. It needs no secrets — `npm run build` works without environment variables.
 
-## Variables de entorno
+## Environment variables
 
-Viven **solo en Vercel**: proyecto `todo-poc` → Settings → Environment Variables.
-No están en el repositorio ni en los secrets de GitHub.
+They live **only in Vercel**: project `todo-poc` → Settings → Environment Variables.
+Not in the repository, not in GitHub secrets.
 
-| Variable | Origen |
+| Variable | Source |
 | --- | --- |
 | `SUPABASE_URL` | `https://itnmhhhqymgsegnntemk.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API Keys → `service_role` |
 
-## Lo que los conectores no pueden hacer
+## What the connectors can't do
 
-Cosas que hay que pedirle al usuario, porque no hay herramienta para ellas:
+Things to ask the user for, because no tool covers them:
 
-- **Escribir variables de entorno en Vercel.** Se leen, no se escriben.
-- **Crear secrets en GitHub.**
-- **Leer la `service_role` key de Supabase.** El conector solo expone las claves
-  publicables. Si hace falta, la copia el usuario del panel.
-- **Conectar el repositorio a un proyecto de Vercel.**
+- **Writing environment variables in Vercel.** They can be read, not written.
+- **Creating GitHub secrets.**
+- **Reading the Supabase `service_role` key.** The connector only exposes publishable
+  keys. If it's needed, the user copies it from the dashboard.
+- **Connecting the repository to a Vercel project.**
 
-El conector de Vercel caduca de vez en cuando y hay que reautorizarlo desde los
-ajustes de conectores de claude.ai. Si sus herramientas fallan por autorización,
-decírselo al usuario en vez de dar por inaccesible el despliegue: `curl` a
-`https://todo-poc.vercel.app/api/health` sigue funcionando para comprobar el
-estado.
+The Vercel connector expires periodically and has to be reauthorized from the
+claude.ai connector settings. If its tools fail on authorization, say so rather than
+declaring deployment unreachable: `curl` to `https://todo-poc.vercel.app/api/health`
+still works for checking state.
 
-## Comprobar que todo sigue en pie
+## Checking it's all still standing
 
 ```bash
-# El backend alcanza la base de datos
+# The backend reaches the database
 curl -s https://todo-poc.vercel.app/api/health          # {"ok":true,"todos":N}
 
-# La base de datos sigue cerrada desde fuera
+# The database is still closed from outside
 curl -s "https://itnmhhhqymgsegnntemk.supabase.co/rest/v1/todos?select=*" \
   -H "apikey: sb_publishable_EmD-j7cm9koq_TSI97uRPg_DdzrrbY2"   # 42501
 ```
 
-`/api/health` distingue el caso de "faltan variables de entorno"
-(`reason: not_configured`) del de "la base de datos no responde"
+`/api/health` distinguishes "environment variables missing"
+(`reason: not_configured`) from "the database isn't answering"
 (`reason: database_unreachable`).
 
-## Desarrollo local
+## Local development
 
 ```bash
 npm install
-cp .env.example .env.local   # y pegar la service_role key
+cp .env.example .env.local   # and paste the service_role key
 npm run dev
 ```
 
-`npm run build` funciona sin variables de entorno: sirve para verificar que
-ninguna credencial se ha colado en el bundle del cliente.
+| Command | What it is | Why |
+| --- | --- | --- |
+| `npm run format` | `biome format .` — fails on unformatted files | Fast; `format:write` fixes in place |
+| `npm run lint` | `eslint .` with `eslint-config-next` | Catches the Next.js and hooks mistakes a model makes unsupervised |
+| `npm run build` | `next build` | Works without env vars, which is what proves no credential reached the client bundle |
 
-`npm run lint` es `eslint .` con la configuración de create-next-app
-(`eslint.config.mjs`). No se usa `next lint` porque quedó obsoleto en Next 15.5 y,
-sin configurar, abre un prompt interactivo que cuelga a los agentes. Las dos órdenes
-son las que corre la Action de CI, y su check en verde es lo que abre el merge.
+Those three are what CI runs, and the green check is what opens the merge. Biome
+formats and ESLint lints; they don't overlap, and Biome's linter is off on purpose.
 
-## Esquema
+## Schema
 
 ```sql
 create table public.todos (
@@ -146,13 +153,6 @@ create table public.todos (
 );
 ```
 
-Cambios de esquema con `mcp__Supabase__apply_migration` sobre
-`project_id: itnmhhhqymgsegnntemk`, no con `execute_sql`: así quedan registrados
-como migración.
-
-## Estado de la POC
-
-No hay autenticación de usuarios: cualquiera que abra la web edita la lista,
-porque la API no distingue quién llama. Lo que sí está resuelto es que el acceso
-pasa por el servidor, que es donde iría el login. Si se añade autenticación, el
-sitio natural es la capa `/api`, no devolver el acceso directo al cliente.
+Schema changes with `mcp__Supabase__apply_migration` on
+`project_id: itnmhhhqymgsegnntemk`, not `execute_sql`, so they're recorded as
+migrations.

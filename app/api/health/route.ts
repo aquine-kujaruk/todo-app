@@ -13,7 +13,7 @@ export async function GET() {
         detail:
           "Faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY en las Environment Variables del proyecto en Vercel.",
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -24,7 +24,7 @@ export async function GET() {
   if (error) {
     return NextResponse.json(
       { ok: false, reason: "database_unreachable", detail: error.message },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
