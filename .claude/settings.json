@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(uv tool install graphifyy)",
+      "Bash(uv tool upgrade graphifyy)",
+      "Bash(uv tool list)",
+      "Bash(uv venv:*)",
+      "Bash(uv pip install graphifyy)",
+      "Bash(graphify:*)",
+      "Bash(npm ci)",
+      "Bash(npm install)",
+      "Bash(npm run format)",
+      "Bash(npm run format:write)",
+      "Bash(npm run lint)",
+      "Bash(npm run build)",
+      "Bash(git blame:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git status:*)",
+      "Bash(git show:*)",
+      "Bash(curl -s https://todo-poc.vercel.app/api/health)",
+      "Bash(curl -s https://pypi.org/pypi/graphifyy/json)"
+    ],
+    "deny": [
+      "Bash(graphify install:*)",
+      "Bash(graphify uninstall:*)",
+      "Bash(graphify label:*)",
+      "Bash(graphify-mcp:*)",
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env*.local)"
+    ]
+  }
+}

@@ -9,6 +9,12 @@
   "linter": { "enabled": false },
   "assist": { "enabled": false },
   "files": {
-    "includes": ["**", "!.next/**", "!node_modules/**", "!package-lock.json"]
+    "includes": [
+      "**",
+      "!.next/**",
+      "!node_modules/**",
+      "!package-lock.json",
+      "!graphify-out/**"
+    ]
   }
 }
