@@ -76,10 +76,16 @@ An issue's label is where it is right now, and exactly one applies at a time:
 `ready-for-agent` → `implementing` → `in-review` → `deploying` → `shipped`. `blocked`
 is added alongside whichever stage stalled, and removed when it moves again.
 
-Every PR body says `Closes #<issue>`. That link is the memory of this project: to
-find out why existing code is the way it is, `git blame` it, take the `(#N)` from the
-commit subject to the PR, and the `Closes #M` in the PR to the issue that explains the
-intent. An issue still sitting on `ready-for-agent` after its code shipped is a bug.
+Every PR body says `Closes #` and the literal issue number. That link is the memory of
+this project: to find out why existing code is the way it is, `git blame` it, take the
+`(#N)` from the commit subject to the PR, and the `Closes` in the PR to the issue that
+explains the intent. An issue still on `ready-for-agent` after its code shipped, or
+still open after it merged, is a bug — verify and close it by hand, since `Closes`
+doesn't always fire.
+
+Two traps, both hit in practice: GitHub strips anything shaped like an HTML tag, so a
+placeholder in angle brackets posts as nothing and `Closes #` links to no issue —
+write real digits and wrap placeholders in backticks.
 
 Setting labels replaces the whole set, which is what keeps the stages exclusive: pass
 `["in-review"]` to move, `["in-review", "blocked"]` to stall. A label that doesn't
