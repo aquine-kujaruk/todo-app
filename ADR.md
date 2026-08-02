@@ -33,3 +33,7 @@ this file past its budget, something already here has stopped earning its place.
   history.
 - **If authentication is ever added, it belongs in the `/api` layer.** That layer is
   already the single chokepoint every request passes through.
+- **A browser-local preference lives in the DOM, never in React state.** The theme is
+  `data-theme` on `html`, stamped by a blocking inline script in `<head>` before the first
+  paint, and CSS decides what the button shows. Reading storage during render brings back
+  both the flash and the hydration mismatch this shape exists to avoid.
