@@ -19,14 +19,62 @@ Both files carry a line budget and are pruned as they grow: adding a decision is
 coupled to removing one that has stopped earning its place. Git history is the
 archive.
 
-## Asking for changes without knowing how to code
+## The knowledge graph
 
-`/next` (in `.claude/skills/`) covers that whole path for a non-technical person: a
-plain-language interview — thorough, but only about what that person can decide,
-never about the technical side — then an issue holding the spec and the plan, handed
-to an Opus agent that orchestrates Sonnets to implement it, waits for the CI check
-and merges to `main` on green. Whoever asked waits for nothing and checks nothing:
-they get a notification once it's in production.
+`graphify` turns the repository into a queryable graph of what connects to what. Use
+it to answer "what does this touch?" before planning a change, instead of grepping
+blind. `.claude/skills/graphify/` holds the bootstrap: install, version check, build,
+query.
+
+The container is ephemeral, so the tool is absent at the start of every session.
+Whenever a `/next` run reaches the point of writing an issue, dispatch **one Sonnet
+subagent in the background** to install-or-upgrade it and refresh the graph, then keep
+interviewing while it works — nobody waits on the graph.
+
+`graphify-out/` is gitignored on purpose: it's derived, it goes stale the moment code
+changes, and its JSON would bury every diff. Never pass a flag that pushes the graph
+to an outside service (`--neo4j-push`, `--falkordb-push`, `--mcp`).
+
+## Mandate zero: production stays up
+
+Above everything else in this file. Before merging anything, and again after the
+deploy, run the health check below. If production is unhealthy — **either time** —
+stop, tell the user what's failing, and wait for their decision. Never merge onto a
+production that is already down: nobody could then tell which change broke it.
+
+**Never revert, roll back or redeploy on your own judgement.** Report and wait. A
+feature that ships tomorrow costs nothing; an outage costs the user their app.
+
+## How changes get asked for
+
+`/next` (in `.claude/skills/`) is **the default way of working here, not a command
+anyone has to type**. Any message asking the app to do something new, or reporting
+that it behaves wrong, runs the whole path: a plain-language interview — thorough,
+but only about what the person can decide — then an issue holding the spec and the
+plan, handed to an Opus agent that orchestrates Sonnets, waits for the CI check and
+merges to `main` on green. Whoever asked waits for nothing and checks nothing.
+
+A question ("is it up?", "why is it built like this?") is just answered — no
+interview, no issue. When it's genuinely unclear which one it is, run the flow.
+
+If someone opens by saying they're technical, talk to them technically: architecture,
+schema and trade-offs in their vocabulary, and ask what you'd otherwise decide alone.
+Nothing else relaxes — issue, green check and mandate zero all still apply.
+
+### Issues carry the stage, and the link back
+
+An issue's label is where it is right now, and exactly one applies at a time:
+`ready-for-agent` → `implementing` → `in-review` → `deploying` → `shipped`. `blocked`
+is added alongside whichever stage stalled, and removed when it moves again.
+
+Every PR body says `Closes #<issue>`. That link is the memory of this project: to
+find out why existing code is the way it is, `git blame` it, take the `(#N)` from the
+commit subject to the PR, and the `Closes #M` in the PR to the issue that explains the
+intent. An issue still sitting on `ready-for-agent` after its code shipped is a bug.
+
+Setting labels replaces the whole set, which is what keeps the stages exclusive: pass
+`["in-review"]` to move, `["in-review", "blocked"]` to stall. A label that doesn't
+exist yet is created the first time it's applied — no need to make it by hand.
 
 ## The three places this lives
 
@@ -97,13 +145,19 @@ Not in the repository, not in GitHub secrets.
 
 ## What the connectors can't do
 
-Things to ask the user for, because no tool covers them:
+Things to ask the user for, because no tool covers them. Never report these as
+impossible and never quietly skip them: stop and hand over a procedure — where to
+click, what to paste, how they'll know it worked, and what you'll do once they
+confirm. Then wait. One blocked step is not a failed request.
 
 - **Writing environment variables in Vercel.** They can be read, not written.
 - **Creating GitHub secrets.**
 - **Reading the Supabase `service_role` key.** The connector only exposes publishable
   keys. If it's needed, the user copies it from the dashboard.
 - **Connecting the repository to a Vercel project.**
+- **Installing `graphify` unattended.** `uv tool install graphifyy` can trip the
+  sandbox permission classifier even with the allow rule in `.claude/settings.json`;
+  if it does, the user approves it once when prompted.
 
 The Vercel connector expires periodically and has to be reauthorized from the
 claude.ai connector settings. If its tools fail on authorization, say so rather than

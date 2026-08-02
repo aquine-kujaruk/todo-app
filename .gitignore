@@ -9,3 +9,7 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
+# Derived knowledge graph — rebuilt on demand, stale as soon as code changes,
+# and its JSON would bury every diff. See .claude/skills/graphify/.
+graphify-out/
