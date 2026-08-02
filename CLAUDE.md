@@ -7,10 +7,11 @@ desde aquí: los cambios se piden en el chat, se abren como PR y se mergean a
 ## Pedir cambios sin saber programar
 
 `/next` (en `.claude/skills/`) cubre ese camino entero para quien no es técnico:
-pregunta en lenguaje llano —solo lo que esa persona puede decidir, nunca lo técnico—,
-publica una issue con la especificación y el plan, y despacha subagentes que la
-implementan, pasan `lint` y `build`, abren la PR y la mergean a `main`. Quien pide el
-cambio no espera ni comprueba nada; de eso se encarga el agente.
+entrevista en lenguaje llano —a fondo, pero solo sobre lo que esa persona puede
+decidir, nunca sobre lo técnico—, publica una issue con la especificación y el plan,
+y se la entrega a un agente Opus que orquesta Sonnets para implementarla, espera al
+check de CI y mergea a `main` en verde. Quien pide el cambio no espera ni comprueba
+nada: recibe un aviso cuando ya está en producción.
 
 ## Los tres sitios donde vive esto
 
@@ -60,18 +61,22 @@ cliente, hay que replantearlo: rompe la garantía de que todo pasa por el servid
 ## Despliegue
 
 Lo lleva la **integración Git nativa de Vercel**, conectada en el panel. No hay
-GitHub Action, ni `VERCEL_TOKEN`, ni secrets en el repositorio.
+`VERCEL_TOKEN` ni ningún secret en el repositorio.
 
 | Evento | Resultado |
 | --- | --- |
-| PR contra `main` | deploy de preview |
+| PR contra `main` | deploy de preview + check de CI |
 | Merge a `main` | deploy a producción |
 
-Hubo un workflow que hacía esto con la CLI de Vercel; se eliminó porque exigía un
-token para conseguir lo que la integración nativa da sin credenciales. Sigue en
-el historial (`git log -- .github/workflows/deploy.yml`) por si algún día hacen
-falta pasos propios antes de desplegar: tests, linters o una puerta sobre
-`/api/health`.
+Hubo un workflow que desplegaba con la CLI de Vercel; se eliminó porque exigía un
+token para conseguir lo que la integración nativa da sin credenciales. Sigue en el
+historial (`git log -- .github/workflows/deploy.yml`).
+
+El despliegue, entonces, no lo toca ninguna Action. La única que hay es
+`.github/workflows/ci.yml`, que corre `lint` y `build` en cada PR y en cada push a
+`main`. Existe porque es la puerta de `/next`: un agente que dice "el lint pasó" es
+una promesa, y un check verde es un hecho. No necesita secrets — `npm run build`
+funciona sin variables de entorno.
 
 ## Variables de entorno
 
@@ -128,7 +133,7 @@ ninguna credencial se ha colado en el bundle del cliente.
 `npm run lint` es `eslint .` con la configuración de create-next-app
 (`eslint.config.mjs`). No se usa `next lint` porque quedó obsoleto en Next 15.5 y,
 sin configurar, abre un prompt interactivo que cuelga a los agentes. Las dos órdenes
-son las puertas que `/next` exige en verde antes de empujar y antes de mergear.
+son las que corre la Action de CI, y su check en verde es lo que abre el merge.
 
 ## Esquema
 

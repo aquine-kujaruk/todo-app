@@ -1,17 +1,18 @@
 ---
 name: next
-description: Convierte en código desplegado lo que pide alguien que no programa: preguntas de negocio, una issue con la especificación, y subagentes que la implementan y la mergean a main. Úsala cuando alguien describa algo que quiere que la aplicación haga, o algo que no le funciona como espera, sin entrar en detalles técnicos.
+description: Convierte en código desplegado lo que pide alguien que no programa: una entrevista de negocio a fondo, una issue con la especificación, y agentes que la implementan, pasan CI y la mergean a main. Úsala cuando alguien describa algo que quiere que la aplicación haga, o algo que no le funciona como espera, sin entrar en detalles técnicos.
 ---
 
 # Next
 
-Alguien que no programa dice lo que quiere; acaba habiendo código en producción. Quien
-te habla solo contesta preguntas: ni espera, ni comprueba, ni revisa.
+Alguien que no programa dice lo que quiere; acaba habiendo código en producción. Quien te
+habla solo contesta preguntas: ni espera, ni comprueba, ni revisa.
 
 ```
-Fase 1  Conversación     tú (Opus)            preguntas de negocio
-Fase 2  Issue            tú (Opus)            especificación autocontenida
-Fase 3  Implementación   subagentes (Sonnet)  código, verde, PR, merge a main
+Fase 1  Conversación   tú (Opus)         el árbol de producto, entero
+Fase 2  Issue          tú (Opus)         el handoff: especificación + implementación
+Fase 3  Entrega        Opus orquesta,    código, CI, merge, aviso
+                       Sonnet implementa
 ```
 
 Vas siempre hacia delante. **Solo hay una parada: lo nuclear.**
@@ -19,8 +20,7 @@ Vas siempre hacia delante. **Solo hay una parada: lo nuclear.**
 ## Fase 1 — El qué es suyo, el cómo es tuyo
 
 Eres el analista de dominio; quien te habla es el cliente. Sabe qué quiere y para qué, no
-cómo se construye. Preguntas por los casos que no ha contado y por lo que pasa cuando algo
-va mal. El cómo lo resuelves entero, sin consultarlo.
+cómo se construye.
 
 **El filtro**, antes de escribir cada pregunta:
 
@@ -29,17 +29,28 @@ va mal. El cómo lo resuelves entero, sin consultarlo.
 Sí → pregúntala. No → decídela en silencio y anótala en la issue. Tablas, endpoints,
 índices, optimistic UI, validación, dónde vive el estado: todo eso cae del lado del no.
 
-Pregunta además solo si la respuesta cambiaría lo que se construye y si equivocarte saldría
-caro. No hay tope: son las que pasen el filtro. Si te salen muchas, se te están colando
-preguntas técnicas disfrazadas — vuelve a pasarlas.
-
 Los hechos se miran, no se preguntan: el repositorio, Supabase
 (`project_id: itnmhhhqymgsegnntemk`), `curl -s https://todo-poc.vercel.app/api/health`,
 las issues anteriores.
 
+### El árbol
+
+**El filtro elige qué árbol recorres, no hasta dónde.** El de producto lo recorres entero,
+rama por rama, resolviendo las dependencias entre decisiones una a una. Cada respuesta
+abre ramas nuevas — síguelas hasta el final.
+
+Interroga sin piedad los sitios donde la gente da cosas por supuestas: qué pasa cuando eso
+está vacío, cuando falla, cuando ya existe, cuando se hace dos veces, cuando lo hacen dos
+personas a la vez, quién debería verlo y quién no, qué espera ver justo después de hacerlo.
+El cliente sabe la respuesta a todo eso; simplemente no sabía que hacía falta contarlo.
+
+**Terminas cuando toda rama abierta está cerrada** y ninguna pregunta pendiente cambiaría
+lo que se va a construir. Si te salen muchas preguntas técnicas, es que se están colando
+disfrazadas — vuelve a pasarlas por el filtro; que sean muchas de producto es buena señal.
+
 **Cómo se pregunta:** una cada vez, dos frases como mucho, con tu recomendación dentro para
 que un "vale" sea respuesta completa. En el lenguaje de quien usa la app, nunca en el de
-quien la programa.
+quien la programa. Lo largo es la entrevista, no cada pregunta.
 
 | ❌ | ✅ |
 | --- | --- |
@@ -60,17 +71,16 @@ Ahí paras y avisas, antes de meterlo en el plan:
 
 Si dice adelante, adelante: es su decisión. El aviso queda escrito en la issue.
 
-### Parar
+### Cerrar
 
-Cuando ninguna pregunta pendiente cambiaría lo que se va a construir, resume en afirmativo
-qué se va a hacer y pasa a la Fase 2. La aprobación ya está dada: es haber invocado esta
-skill. Cero preguntas es un resultado válido.
+Resume en afirmativo qué se va a hacer y pasa a la Fase 2. La aprobación ya está dada: es
+haber invocado esta skill.
 
 ## Fase 2 — La issue
 
 Una sola issue en `aquine-kujaruk/todo-app` con `mcp__github__issue_write`, etiquetada
-`ready-for-agent`. Los subagentes arrancan **en frío**: lo que no esté escrito ahí, no
-existe.
+`ready-for-agent`. Es el **handoff**: nadie más leerá esta conversación, así que lo que no
+esté escrito ahí no existe.
 
 Título en lenguaje llano — "poner fecha de vencimiento a las tareas", no "añadir columna
 `due_date`".
@@ -83,13 +93,15 @@ En sus palabras.
 
 ## Qué acordamos
 
-Las decisiones de la Fase 1 en lenguaje llano, una por línea. Incluye las suposiciones que
-tomaste sin preguntar, marcadas como tales, y cualquier ⚠️ aviso y cómo se resolvió.
+Todo lo que salió de la entrevista, en lenguaje llano, una decisión por línea. Incluye las
+suposiciones que tomaste sin preguntar, marcadas como tales, y cualquier ⚠️ aviso y cómo se
+resolvió.
 
 ## Historias de usuario
 
 Lista numerada y larga — "Como <actor>, quiero <capacidad>, para <beneficio>" — que cubra
-también los casos raros: vacío, fallo, dato inexistente, hecho dos veces.
+también los casos raros que cerraste en la entrevista: vacío, fallo, dato inexistente,
+hecho dos veces, dos personas a la vez.
 
 ## Decisiones de implementación
 
@@ -120,49 +132,54 @@ Lo que deliberadamente no se hace, y por qué.
 
 </plantilla-issue>
 
-## Fase 3 — Los subagentes
+## Fase 3 — Entrega
 
-Despachas, esperas, verificas y cuentas. **El código lo escriben ellos**, incluidos los
-arreglos que hagan falta por el camino: si uno vuelve fallando, despachas otro con el
-diagnóstico. Si falla dos veces por lo mismo, paras y lo cuentas en llano.
+Despachas **un solo subagente Opus** que orquesta el resto, con
+`subagent_type: general-purpose`, `model: opus` y `run_in_background: false`. Arranca **en
+frío**, con la referencia de la issue y nada más — por eso la Fase 2 es autocontenida.
 
-- Un subagente por corte, `subagent_type: general-purpose`, **`model: sonnet`**.
-- `run_in_background: false` — necesitas el resultado para encadenar y para contarlo.
-- En orden de dependencia, de uno en uno, todos sobre la misma rama y la misma PR. Dos a la
-  vez solo si no se bloquean **y** tocan ficheros distintos, con `isolation: "worktree"`.
-- Rama: la designada de la sesión, o `feature/<slug>` desde `main`.
+Opus orquesta porque reparte trabajo y juzga resultados sin nadie que le revise; Sonnet
+implementa cada corte, que es trabajo acotado y ya especificado.
 
-**Verde** es `npm run lint` y `npm run build`, los dos en 0. Se exige antes de cada push y
-otra vez antes del merge, porque mergear a `main` despliega a producción.
+<prompt-orquestador>
 
-<prompt-subagente>
+Entrega la issue #<número> de `aquine-kujaruk/todo-app`, entera.
 
-Implementa el corte N de la issue #<número> de `aquine-kujaruk/todo-app`.
+Léela con `mcp__github__issue_read`: es tu única fuente, no hay conversación previa que
+consultar. Lee también `CLAUDE.md`, que trae restricciones de arquitectura obligatorias.
 
-Léela entera con `mcp__github__issue_read` antes de tocar nada: es tu única fuente, no hay
-conversación previa que consultar. Lee también `CLAUDE.md`, que trae restricciones de
-arquitectura obligatorias.
+Tú no escribes código. Reparte, esperas, juzgas y arreglas repartiendo otra vez.
 
-Tu corte: <título y descripción>.
-Ya en la rama por cortes anteriores: <resumen, o "nada, eres el primero">.
-Rama: `<rama>` (créala desde `main` si no existe).
+1. Trabaja sobre `feature/<slug>` desde `main`. Todos los cortes van a esa rama.
+2. Por cada corte del plan, en orden de dependencia, despacha un subagente con
+   `subagent_type: general-purpose` y `model: sonnet`, pasándole el número de issue, su
+   corte y qué dejaron hechos los cortes anteriores. De uno en uno; dos a la vez solo si no
+   se bloquean y tocan ficheros distintos, con `isolation: "worktree"`.
+3. Cuando estén todos, abre la PR contra `main` con `Closes #<número>`.
+4. **Espera al check de CI.** Sondea con `mcp__github__pull_request_read` hasta que
+   concluya. No mergees por tu cuenta ni des por bueno lo que no ha concluido.
+5. Si sale en rojo, lee el fallo con `mcp__github__get_job_logs`, despacha un Sonnet con
+   ese diagnóstico y vuelve al paso 4. Si el mismo fallo sobrevive a dos intentos, para e
+   informa.
+6. En verde, mergea con `mcp__github__merge_pull_request`.
+7. Comprueba `curl -s https://todo-poc.vercel.app/api/health` hasta que responda
+   `{"ok":true}`.
 
-- Decide tú todo lo técnico; el usuario no está mirando. Si te bloqueas, termina
-  explicando qué te bloquea.
-- Quédate dentro de tu corte.
-- `npm run lint` y `npm run build` en 0 antes de hacer push. Si algo falla, arréglalo y
-  repite.
-- Commit descriptivo y `git push -u origin <rama>`.
+Informa de: qué hace ahora la app que antes no podía, el estado final del check, y
+cualquier criterio de aceptación que quedara sin cubrir.
 
-Informa de: qué has cambiado, cómo quedaron lint y build, y qué criterios de aceptación
-cubres.
+</prompt-orquestador>
 
-</prompt-subagente>
+### La puerta es el check, no el modelo
 
-El subagente del último corte cierra: comprueba verde, abre la PR contra `main` con
-`Closes #<número>` y la mergea.
+`lint` y `build` corren en GitHub Actions (`.github/workflows/ci.yml`) contra la rama. Un
+modelo que dice "el lint pasó" es una promesa; **verde** es el check de GitHub, que es un
+hecho y no depende de que nadie se acuerde de mirarlo. Los agentes pueden correr
+`npm run lint` mientras trabajan, pero lo que abre el merge es el check.
 
-Y entonces esperas tú, que para eso está automatizado: `curl -s
-https://todo-poc.vercel.app/api/health` hasta que responda `{"ok":true}`. Cierras contando
-en dos o tres frases qué puede hacer ahora la app que antes no podía, con el enlace a la
-issue. El informe del subagente no lo ve nadie más que tú.
+### Cerrar con el usuario
+
+Cuando el orquestador vuelva, avisa con `PushNotification` — probablemente se haya ido a
+otra cosa, que es justo el objetivo — y cuenta en dos o tres frases llanas qué puede hacer
+ahora la app que antes no podía, con el enlace a la issue. Su informe no lo ve nadie más
+que tú.
