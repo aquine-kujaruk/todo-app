@@ -233,6 +233,11 @@ What deliberately isn't being done, and why.
 
 </issue-template>
 
+**Wrap every placeholder in backticks before it goes to GitHub.** The tracker strips
+anything that looks like an HTML tag, so a bare `<actor>` or `<number>` vanishes and
+`Closes #<number>` posts as `Closes #`, which links nothing and closes nothing. This
+template is full of them; they are safe here and not safe there.
+
 ### The issue says where it is
 
 An issue's label is its current stage, and it moves. Exactly one stage label at a time —
@@ -286,9 +291,10 @@ You do not write code. You hand out work, wait, judge, and hand out again to fix
    don't block each other and touch different files, with `isolation: "worktree"`.
 3. Health-check production the way `CLAUDE.md` describes. If it's already broken, stop
    here — do not open a PR onto a broken production.
-4. Open the PR. Its body must contain `Closes #<number>` — that link is how future
-   sessions recover why this code exists, so it is not optional. Move the issue to
-   `in-review`.
+4. Open the PR. Its body must contain `Closes #` followed by the literal issue number —
+   that link is how future sessions recover why this code exists, so it is not optional.
+   Write the digits out; a placeholder in angle brackets is stripped by the tracker and
+   links nothing. Move the issue to `in-review`.
 5. **Wait for the CI check.** Poll until it concludes. Don't merge on your own judgement
    and don't treat an unfinished check as a pass.
 6. If it's red, read the failing job's logs, dispatch a Sonnet with that diagnosis, and go
@@ -298,6 +304,9 @@ You do not write code. You hand out work, wait, judge, and hand out again to fix
 8. Verify the deployment the way `CLAUDE.md` describes. Healthy → move the issue to
    `shipped` and comment on it with the PR link and one line on what shipped. Unhealthy →
    `blocked`, comment the failing output, stop, report.
+9. Re-read the issue. `Closes` does not always fire — if it's still open, close it
+   yourself with reason `completed`. An issue whose work shipped and is still open is the
+   same lost context as one stuck on `ready-for-agent`.
 
 If a step needs something no tool of yours can do, don't skip it and don't call it
 impossible: stop, label `blocked`, and report exactly what a human has to do.
