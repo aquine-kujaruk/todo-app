@@ -24,7 +24,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (typeof isDone !== "boolean") {
     return NextResponse.json(
       { error: "is_done debe ser booleano" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

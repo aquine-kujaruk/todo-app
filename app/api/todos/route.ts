@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   if (!title || title.length > 500) {
     return NextResponse.json(
       { error: "El título debe tener entre 1 y 500 caracteres" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

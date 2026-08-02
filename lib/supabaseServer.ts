@@ -18,7 +18,7 @@ export function getSupabase(): SupabaseClient {
 
   if (!url || !key) {
     throw new Error(
-      "Faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY en el entorno del servidor."
+      "Faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY en el entorno del servidor.",
     );
   }
 

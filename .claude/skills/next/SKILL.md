@@ -1,185 +1,202 @@
 ---
 name: next
-description: Convierte en código desplegado lo que pide alguien que no programa: una entrevista de negocio a fondo, una issue con la especificación, y agentes que la implementan, pasan CI y la mergean a main. Úsala cuando alguien describa algo que quiere que la aplicación haga, o algo que no le funciona como espera, sin entrar en detalles técnicos.
+description: Turns what a non-technical person asks for into deployed code: a thorough business interview, an issue holding the spec, and agents that implement it, pass CI and merge. Use when someone describes something they want the application to do, or something that isn't working the way they expect, without going into technical detail.
 ---
 
 # Next
 
-Alguien que no programa dice lo que quiere; acaba habiendo código en producción. Quien te
-habla solo contesta preguntas: ni espera, ni comprueba, ni revisa.
+Someone who doesn't code says what they want; code ends up in production. They answer
+questions and nothing else — no waiting, no checking, no reviewing.
 
 ```
-Fase 1  Conversación   tú (Opus)         el árbol de producto, entero
-Fase 2  Issue          tú (Opus)         el handoff: especificación + implementación
-Fase 3  Entrega        Opus orquesta,    código, CI, merge, aviso
-                       Sonnet implementa
+Phase 1  Interview     you (Opus)         the product tree, all of it
+Phase 2  Issue         you (Opus)         the handoff: spec + implementation
+Phase 3  Delivery      Opus orchestrates, code, CI, merge
+                       Sonnet implements
+Phase 4  Memory        you (Opus)         what the next session shouldn't have to re-derive
 ```
 
-Vas siempre hacia delante. **Solo hay una parada: lo nuclear.**
+You always move forward. **There is one stop: the nuclear.**
 
-## Fase 1 — El qué es suyo, el cómo es tuyo
+Everything project-specific — repository, hosting, database, commands, deployment — lives
+in `CLAUDE.md`. This skill never hardcodes it.
 
-Eres el analista de dominio; quien te habla es el cliente. Sabe qué quiere y para qué, no
-cómo se construye.
+## Before you start
 
-**El filtro**, antes de escribir cada pregunta:
+Read `CLAUDE.md`, `ADR.md` and `CONTEXT.md`. They exist so you don't re-derive what was
+already settled.
 
-> ¿Tendría opinión sobre esto alguien que solo usa la aplicación y nunca ha visto el código?
+If the request touches something that already exists, `git blame` the relevant lines, find
+the commit, and read the issue it closed. That issue holds the **intent** behind the code —
+what the client was trying to achieve, and what was deliberately left out. Code tells you
+what it does; the issue tells you why.
 
-Sí → pregúntala. No → decídela en silencio y anótala en la issue. Tablas, endpoints,
-índices, optimistic UI, validación, dónde vive el estado: todo eso cae del lado del no.
+## Phase 1 — Their what, your how
 
-Los hechos se miran, no se preguntan: el repositorio, Supabase
-(`project_id: itnmhhhqymgsegnntemk`), `curl -s https://todo-poc.vercel.app/api/health`,
-las issues anteriores.
+You are the domain analyst; the person talking to you is the client. They know what they
+want and why, not how it gets built. Interview them in their own language, whichever they
+write to you in.
 
-### El árbol
+**The filter**, before writing any question:
 
-**El filtro elige qué árbol recorres, no hasta dónde.** El de producto lo recorres entero,
-rama por rama, resolviendo las dependencias entre decisiones una a una. Cada respuesta
-abre ramas nuevas — síguelas hasta el final.
+> Would someone who only ever uses this application, and has never seen the code, have an
+> opinion about this?
 
-Interroga sin piedad los sitios donde la gente da cosas por supuestas: qué pasa cuando eso
-está vacío, cuando falla, cuando ya existe, cuando se hace dos veces, cuando lo hacen dos
-personas a la vez, quién debería verlo y quién no, qué espera ver justo después de hacerlo.
-El cliente sabe la respuesta a todo eso; simplemente no sabía que hacía falta contarlo.
+Yes → ask it. No → decide it silently and record it in the issue. Table names, endpoint
+shapes, indexes, optimistic UI, validation, where state lives: all on the "no" side.
 
-**Terminas cuando toda rama abierta está cerrada** y ninguna pregunta pendiente cambiaría
-lo que se va a construir. Si te salen muchas preguntas técnicas, es que se están colando
-disfrazadas — vuelve a pasarlas por el filtro; que sean muchas de producto es buena señal.
+Facts get looked up, not asked: the repository, the running service, previous issues.
 
-**Cómo se pregunta:** una cada vez, dos frases como mucho, con tu recomendación dentro para
-que un "vale" sea respuesta completa. En el lenguaje de quien usa la app, nunca en el de
-quien la programa. Lo largo es la entrevista, no cada pregunta.
+### The tree
+
+**The filter picks which tree you walk, not how far.** You walk the product tree whole,
+branch by branch, resolving dependencies between decisions one at a time. Every answer
+opens new branches — follow them to the end.
+
+Interrogate the places where people assume without noticing: what happens when it's empty,
+when it fails, when it already exists, when it's done twice, when two people do it at once,
+who should see it and who shouldn't, what they expect to see immediately afterwards. The
+client knows all of it; they just didn't know it needed saying.
+
+**You're done when no open branch is left** and no pending question would change what gets
+built. Many product questions is a good sign. Many technical ones means they're sneaking
+through the filter in disguise — run them past it again.
+
+**How to ask:** one at a time, two sentences at most, with your recommendation inside so
+that "sure" is a complete answer. In the language of someone using the app, never of
+someone building it. The interview is long; each question is short.
 
 | ❌ | ✅ |
 | --- | --- |
-| ¿Borrado lógico o físico? | Cuando borres una tarea, ¿quieres poder recuperarla luego o que desaparezca del todo? Yo la haría desaparecer. ¿Te vale? |
-| ¿`due_date` como `timestamptz` o `date`? | ¿Las fechas de vencimiento llevan hora o basta el día? Yo pondría solo el día, más simple de rellenar. ¿Te vale? |
-| ¿Ordenamos por `created_at DESC` con índice? | *(decídelo tú)* |
+| Soft delete or hard delete? | When you delete one, do you want to get it back later, or is it gone for good? I'd make it gone. Sound right? |
+| Should that timestamp be a date or a datetime? | Does the time of day matter here, or is the day enough? I'd keep it to the day — simpler to fill in. Sound right? |
+| Do we need an index on that column? | *(you decide)* |
 
-### Lo nuclear
+### The nuclear
 
-Irreversible o caro de deshacer: borrar o transformar datos existentes, datos personales,
-cuentas y contraseñas, dinero, abrir la base de datos al navegador, mandar datos fuera.
+Irreversible or expensive to undo: deleting or transforming existing data, personal data,
+accounts and passwords, money, opening the database to the browser, sending data to an
+outside service.
 
-Ahí paras y avisas, antes de meterlo en el plan:
+There you stop and warn, before it goes into the plan:
 
-> ⚠️ **Esto conviene que lo veas con alguien técnico antes de que lo hagamos.**
-> <Qué es lo delicado y qué podría salir mal, sin jerga.>
-> Si me dices que siga, sigo.
+> ⚠️ **This is worth running past someone technical before we build it.**
+> <What's delicate and what could go wrong, no jargon.>
+> Say the word and I'll carry on.
 
-Si dice adelante, adelante: es su decisión. El aviso queda escrito en la issue.
+If they say go, go — it's their call. The warning goes into the issue either way.
 
-### Cerrar
+### Closing
 
-Resume en afirmativo qué se va a hacer y pasa a la Fase 2. La aprobación ya está dada: es
-haber invocado esta skill.
+State what's going to be built, as a statement rather than a question, and move to Phase 2.
+Approval was invoking this skill.
 
-## Fase 2 — La issue
+## Phase 2 — The issue
 
-Una sola issue en `aquine-kujaruk/todo-app` con `mcp__github__issue_write`, etiquetada
-`ready-for-agent`. Es el **handoff**: nadie más leerá esta conversación, así que lo que no
-esté escrito ahí no existe.
+One issue on the project's tracker, labelled `ready-for-agent`. It's the **handoff**: nobody
+downstream reads this conversation, so what isn't written there doesn't exist.
 
-Título en lenguaje llano — "poner fecha de vencimiento a las tareas", no "añadir columna
-`due_date`".
+Title in plain language — "let people set a due date on tasks", not "add a due_date column".
 
-<plantilla-issue>
+<issue-template>
 
-## Qué se pidió
+## What was asked
 
-En sus palabras.
+In their words.
 
-## Qué acordamos
+## What we agreed
 
-Todo lo que salió de la entrevista, en lenguaje llano, una decisión por línea. Incluye las
-suposiciones que tomaste sin preguntar, marcadas como tales, y cualquier ⚠️ aviso y cómo se
-resolvió.
+Everything the interview settled, in plain language, one decision per line. Include the
+assumptions you made without asking, marked as such, and any ⚠️ warning and how it resolved.
 
-## Historias de usuario
+## User stories
 
-Lista numerada y larga — "Como <actor>, quiero <capacidad>, para <beneficio>" — que cubra
-también los casos raros que cerraste en la entrevista: vacío, fallo, dato inexistente,
-hecho dos veces, dos personas a la vez.
+A long numbered list — "As a <actor>, I want <capability>, so that <benefit>" — covering the
+edge cases you closed in the interview: empty, failure, missing, done twice, two people at
+once.
 
-## Decisiones de implementación
+## Implementation decisions
 
-Para quien escribe el código: módulos que se tocan, contratos de la API, cambios de
-esquema, interacciones concretas. Sin rutas de fichero: envejecen mal. Un esquema o un tipo
-sí, cuando expresa la decisión mejor que la prosa.
+For whoever writes the code: modules touched, API contracts, schema changes, specific
+interactions. No file paths — they go stale. A schema or a type, yes, when it carries the
+decision better than prose.
 
-Restricciones de este repositorio, siempre: nada de `NEXT_PUBLIC_`, el cliente no importa
-`lib/supabaseServer.ts`, esquema con `mcp__Supabase__apply_migration` sobre
-`project_id: itnmhhhqymgsegnntemk` y nunca con `execute_sql`.
+Every constraint from `ADR.md` that this work touches, restated so the implementer doesn't
+have to guess which ones apply.
 
-## Criterios de aceptación
+## Acceptance criteria
 
-- [ ] Criterio 1
-- [ ] Criterio 2
+- [ ] Criterion 1
+- [ ] Criterion 2
 
-## Plan de trabajo
+## Plan
 
-Cortes numerados en orden de dependencia. Cada uno es una **bala trazadora**: atraviesa
-base de datos, API e interfaz, y se puede enseñar funcionando solo. "Primero la base de
-datos, luego la API" es la forma incorrecta. Un solo corte es lo normal en esta app.
+Numbered slices in dependency order. Each is a **tracer bullet**: it cuts through every
+layer and can be demoed on its own. "Database first, then the API" is the wrong shape. One
+slice is normal.
 
-1. **<Título>** — qué queda funcionando de punta a punta. Bloqueado por: ninguno.
+1. **<Title>** — what works end to end once it lands. Blocked by: nothing.
 
-## Fuera de alcance
+## Out of scope
 
-Lo que deliberadamente no se hace, y por qué.
+What deliberately isn't being done, and why.
 
-</plantilla-issue>
+</issue-template>
 
-## Fase 3 — Entrega
+## Phase 3 — Delivery
 
-Despachas **un solo subagente Opus** que orquesta el resto, con
-`subagent_type: general-purpose`, `model: opus` y `run_in_background: false`. Arranca **en
-frío**, con la referencia de la issue y nada más — por eso la Fase 2 es autocontenida.
+Dispatch **one Opus subagent** that orchestrates the rest: `subagent_type: general-purpose`,
+`model: opus`, `run_in_background: false`. It starts **cold**, with the issue reference and
+nothing else — which is why Phase 2 has to stand alone.
 
-Opus orquesta porque reparte trabajo y juzga resultados sin nadie que le revise; Sonnet
-implementa cada corte, que es trabajo acotado y ya especificado.
+Opus orchestrates because it hands out work and judges results with nobody reviewing it;
+Sonnet implements each slice, which is bounded work that's already specified.
 
-<prompt-orquestador>
+<orchestrator-prompt>
 
-Entrega la issue #<número> de `aquine-kujaruk/todo-app`, entera.
+Deliver issue #<number> of <repository>, end to end.
 
-Léela con `mcp__github__issue_read`: es tu única fuente, no hay conversación previa que
-consultar. Lee también `CLAUDE.md`, que trae restricciones de arquitectura obligatorias.
+Read it, then read `CLAUDE.md` and `ADR.md`. The issue is your only source — there is no
+prior conversation to consult.
 
-Tú no escribes código. Reparte, esperas, juzgas y arreglas repartiendo otra vez.
+You do not write code. You hand out work, wait, judge, and hand out again to fix.
 
-1. Trabaja sobre `feature/<slug>` desde `main`. Todos los cortes van a esa rama.
-2. Por cada corte del plan, en orden de dependencia, despacha un subagente con
-   `subagent_type: general-purpose` y `model: sonnet`, pasándole el número de issue, su
-   corte y qué dejaron hechos los cortes anteriores. De uno en uno; dos a la vez solo si no
-   se bloquean y tocan ficheros distintos, con `isolation: "worktree"`.
-3. Cuando estén todos, abre la PR contra `main` con `Closes #<número>`.
-4. **Espera al check de CI.** Sondea con `mcp__github__pull_request_read` hasta que
-   concluya. No mergees por tu cuenta ni des por bueno lo que no ha concluido.
-5. Si sale en rojo, lee el fallo con `mcp__github__get_job_logs`, despacha un Sonnet con
-   ese diagnóstico y vuelve al paso 4. Si el mismo fallo sobrevive a dos intentos, para e
-   informa.
-6. En verde, mergea con `mcp__github__merge_pull_request`.
-7. Comprueba `curl -s https://todo-poc.vercel.app/api/health` hasta que responda
-   `{"ok":true}`.
+1. Work on `feature/<slug>` off the default branch. Every slice lands there.
+2. For each slice in dependency order, dispatch a subagent with
+   `subagent_type: general-purpose` and `model: sonnet`, giving it the issue number, its
+   slice, and what earlier slices already landed. One at a time; two at once only if they
+   don't block each other and touch different files, with `isolation: "worktree"`.
+3. When all slices are in, open the PR with `Closes #<number>`.
+4. **Wait for the CI check.** Poll until it concludes. Don't merge on your own judgement
+   and don't treat an unfinished check as a pass.
+5. If it's red, read the failing job's logs, dispatch a Sonnet with that diagnosis, and go
+   back to step 4. If the same failure survives two attempts, stop and report.
+6. Green: merge.
+7. Verify the deployment the way `CLAUDE.md` describes.
 
-Informa de: qué hace ahora la app que antes no podía, el estado final del check, y
-cualquier criterio de aceptación que quedara sin cubrir.
+Report: what the app can do now that it couldn't, the check's final state, and any
+acceptance criterion left uncovered.
 
-</prompt-orquestador>
+</orchestrator-prompt>
 
-### La puerta es el check, no el modelo
+### The gate is the check, not the model
 
-`lint` y `build` corren en GitHub Actions (`.github/workflows/ci.yml`) contra la rama. Un
-modelo que dice "el lint pasó" es una promesa; **verde** es el check de GitHub, que es un
-hecho y no depende de que nadie se acuerde de mirarlo. Los agentes pueden correr
-`npm run lint` mientras trabajan, pero lo que abre el merge es el check.
+Formatting, linting and build run in CI against the branch. An agent saying "lint passed"
+is a promise; **green** is the check, which is a fact and doesn't depend on anyone
+remembering to look. Agents may run those commands while working, but what opens the merge
+is the check.
 
-### Cerrar con el usuario
+## Phase 4 — Memory
 
-Cuando el orquestador vuelva, avisa con `PushNotification` — probablemente se haya ido a
-otra cosa, que es justo el objetivo — y cuenta en dos o tres frases llanas qué puede hacer
-ahora la app que antes no podía, con el enlace a la issue. Su informe no lo ve nadie más
-que tú.
+Once it's merged, update `ADR.md` and `CONTEXT.md` so the next session doesn't start from
+zero. Add a decision only if it will **bind future work** — a constraint someone would
+otherwise get wrong. Rejected alternatives, one-off details and anything the code now makes
+obvious don't belong there.
+
+Both files carry a line budget. **Adding is coupled to pruning**: if your entry pushes a
+file past its budget, something already in it has stopped earning its place — delete that
+instead of growing the file. Git history is the archive; these two are a working set.
+
+Then notify the client — by this point the whole aim is that they've gone and done
+something else — and tell them in two or three plain sentences what the app can do now that
+it couldn't, with a link to the issue. Nobody else sees the orchestrator's report.

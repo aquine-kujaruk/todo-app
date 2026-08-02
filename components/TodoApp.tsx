@@ -63,7 +63,7 @@ export default function TodoApp() {
 
   async function toggleTodo(todo: Todo) {
     setTodos((prev) =>
-      prev.map((t) => (t.id === todo.id ? { ...t, is_done: !t.is_done } : t))
+      prev.map((t) => (t.id === todo.id ? { ...t, is_done: !t.is_done } : t)),
     );
     try {
       const res = await fetch(`/api/todos/${todo.id}`, {

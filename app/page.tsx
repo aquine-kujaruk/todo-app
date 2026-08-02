@@ -8,8 +8,8 @@ export default function Home() {
       <header className="header">
         <h1>Todo</h1>
         <p>
-          Next.js en Vercel. El navegador solo habla con <code>/api/todos</code>;
-          las claves de Supabase viven en el servidor.
+          Next.js en Vercel. El navegador solo habla con <code>/api/todos</code>
+          ; las claves de Supabase viven en el servidor.
         </p>
       </header>
       <TodoApp />

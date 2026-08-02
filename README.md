@@ -1,73 +1,82 @@
 # Todo POC — Next.js + Supabase + Vercel
 
-Prueba de concepto: un todo list sencillo, sin autenticación de usuarios, donde
-**el navegador nunca habla con Supabase**. Toda la base de datos queda detrás de
-las rutas de servidor de la propia app.
+Proof of concept: a simple todo list, no user authentication, where **the browser
+never talks to Supabase**. The whole database sits behind the app's own server
+routes.
 
-## Arquitectura
+## Architecture
 
 ```
-Navegador  ──fetch /api/todos──►  Lambda de Vercel  ──service_role key──►  Supabase
-(no tiene claves)                 (Next.js Route Handler)                  (RLS cerrado)
+Browser  ──fetch /api/todos──►  Vercel Lambda  ──service_role key──►  Supabase
+(holds no keys)                 (Next.js Route Handler)               (RLS closed)
 ```
 
-- `components/TodoApp.tsx` — cliente. Solo hace `fetch` al mismo origen. No
-  importa el SDK de Supabase ni conoce ninguna clave.
-- `app/api/todos/route.ts` y `app/api/todos/[id]/route.ts` — el backend. Validan
-  la entrada y hablan con Supabase.
-- `lib/supabaseServer.ts` — importa `server-only`, así que **el build falla** si
-  alguien intenta usarlo desde un componente de cliente.
+- `components/TodoApp.tsx` — the client. Only `fetch` to same origin. It doesn't
+  import the Supabase SDK and knows no keys.
+- `app/api/todos/route.ts` and `app/api/todos/[id]/route.ts` — the backend. They
+  validate input and talk to Supabase.
+- `lib/supabaseServer.ts` — imports `server-only`, so **the build fails** if anyone
+  tries to use it from a client component.
 
-Las variables no llevan prefijo `NEXT_PUBLIC_`, de modo que Next no las inlinea
-en el bundle: solo existen en el proceso del servidor.
+No variable carries a `NEXT_PUBLIC_` prefix, so Next doesn't inline them into the
+bundle: they exist only in the server process.
 
-## Por qué la base de datos está realmente cerrada
+## Why the database is genuinely closed
 
-La tabla `todos` tiene RLS activo y **ninguna política**, y se han revocado los
-permisos de los roles `anon` y `authenticated`. Con eso, la clave pública no
-sirve para nada:
+The `todos` table has RLS on and **no policies**, and permissions for the `anon` and
+`authenticated` roles have been revoked. That makes the public key useless:
 
 ```console
-$ curl "$SUPABASE_URL/rest/v1/todos?select=*" -H "apikey: <clave pública>"
+$ curl "$SUPABASE_URL/rest/v1/todos?select=*" -H "apikey: <public key>"
 {"code":"42501","message":"permission denied for table todos"}
 ```
 
-La `service_role` key se salta RLS, y solo vive en el servidor. El único camino
-a los datos es pasar por `/api`.
+The `service_role` key bypasses RLS and lives only on the server. The only route to
+the data is through `/api`.
 
-## Dónde van las claves
+## Where the keys go
 
-**En Vercel**, no en el repositorio ni en GitHub: Project `todo-poc` → Settings →
-Environment Variables.
+**In Vercel**, not in the repository and not in GitHub: Project `todo-poc` → Settings
+→ Environment Variables.
 
-| Variable | Valor |
+| Variable | Value |
 | --- | --- |
 | `SUPABASE_URL` | `https://itnmhhhqymgsegnntemk.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API Keys → `service_role` |
 
-En GitHub no hace falta configurar nada: ni secrets, ni tokens.
+Nothing needs configuring on GitHub: no secrets, no tokens.
 
-## Despliegue
+## Deployment
 
-Lo lleva la integración Git nativa de Vercel. Se conecta una vez en Project
-`todo-poc` → Settings → Git → Connect Git Repository, y a partir de ahí Vercel
-escucha el repositorio por su cuenta:
+Handled by Vercel's native Git integration. Connected once in Project `todo-poc` →
+Settings → Git → Connect Git Repository, and from then on Vercel watches the
+repository on its own:
 
-| Evento | Resultado |
+| Event | Result |
 | --- | --- |
-| PR contra `main` | deploy de preview + comentario con la URL en el PR |
-| Merge a `main` | deploy a producción |
+| PR against `main` | preview deploy + a comment with the URL on the PR |
+| Merge to `main` | production deploy |
 
-No hay GitHub Action. Hubo una que hacía lo mismo con la CLI de Vercel, pero
-exigía un `VERCEL_TOKEN` en los secrets del repositorio para conseguir un
-resultado que la integración nativa da sin credenciales. Está en el historial
-(`git log -- .github/workflows/deploy.yml`) por si algún día hace falta meter
-pasos propios antes de desplegar: tests, linters o una puerta sobre
-`/api/health`. Para eso sí compensa; para desplegar y ya, no.
+No GitHub Action deploys. One used to, via the Vercel CLI, but it required a
+`VERCEL_TOKEN` in the repository secrets to achieve what the native integration gives
+with no credentials at all. It's in history
+(`git log -- .github/workflows/deploy.yml`).
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs `format`, `lint` and `build` on every PR and every
+push to `main`. It needs no secrets, since `npm run build` works without environment
+variables — which is exactly what proves no credential reached the client bundle.
+
+| Command | What it is |
+| --- | --- |
+| `npm run format` | `biome format .` — `format:write` fixes in place |
+| `npm run lint` | `eslint .` with `eslint-config-next` |
+| `npm run build` | `next build` |
 
 ## API
 
-| Método | Ruta | Cuerpo |
+| Method | Path | Body |
 | --- | --- | --- |
 | `GET` | `/api/todos` | — |
 | `POST` | `/api/todos` | `{ "title": "…" }` |
@@ -75,7 +84,7 @@ pasos propios antes de desplegar: tests, linters o una puerta sobre
 | `DELETE` | `/api/todos/:id` | — |
 | `GET` | `/api/health` | — |
 
-## Esquema
+## Schema
 
 ```sql
 create table public.todos (
@@ -86,17 +95,17 @@ create table public.todos (
 );
 ```
 
-## Desarrollo local
+## Local development
 
 ```bash
 npm install
-cp .env.example .env.local   # y pega la service_role key
+cp .env.example .env.local   # and paste the service_role key
 npm run dev
 ```
 
-## Lo que esta POC sigue sin resolver
+## What this POC still doesn't solve
 
-No hay autenticación de usuarios: cualquiera que abra la web puede modificar la
-lista, porque la API no distingue quién llama. La diferencia con la versión
-anterior es que ahora el acceso pasa por tu servidor, que es donde podrías poner
-login, permisos o rate limiting. La base de datos ya no está expuesta.
+There is no user authentication: anyone who opens the site can change the list,
+because the API doesn't distinguish who is calling. What changed from the earlier
+version is that access now goes through your server, which is where login,
+permissions or rate limiting would go. The database is no longer exposed.
