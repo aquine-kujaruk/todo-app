@@ -13,8 +13,10 @@ mistake. Same pruning rule as `ADR.md`: adding is coupled to removing.
   calling. This is the current state of a proof of concept, not a finished intent.
 - **A todo is a title and a done flag.** The title is trimmed and must be between 1 and 500
   characters; empty or whitespace-only is rejected.
-- **Newest first.** The list is ordered by creation time, descending.
 - **Deleting is permanent.** No trash, no undo, no recovery.
+- **Light or dark is per browser.** Until someone presses the toggle their device decides;
+  from then on their choice wins and is remembered only there. The list is shared, the
+  theme is not.
 
 ## Deliberately absent
 
@@ -25,3 +27,4 @@ gap to be filled in passing.
 - Assigning a todo to a person; any notion of ownership.
 - Editing a todo's title after it's created — only the done flag changes.
 - Searching, filtering, or paginating the list.
+- A third "follow my device again" state on the theme toggle: it is two states, not three.
